@@ -20,13 +20,13 @@ logging.basicConfig(
 pdf_folder = "./pdf_test"  # Change this to your actual folder path
 
 # Keywords to search for
-keywords = ["Trailer", "Boat", "12/31/2023"]
+keywords = ["HELPDESK", "ConDition", "12/31/2023"]
 
 # Output file for matches
 output_file_path = os.path.abspath("matching_files.txt")
 
 # Compile keyword pattern for faster matching
-keyword_pattern = re.compile("|".join(re.escape(k) for k in keywords), re.IGNORECASE)
+keyword_pattern = re.compile(r"\b(" + "|".join(re.escape(k) for k in keywords) + r")\b", re.IGNORECASE)
 
 # Function to extract text from the first N pages of a PDF
 def extract_text_from_pdf(file_path, max_pages=5):
