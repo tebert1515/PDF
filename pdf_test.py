@@ -2,14 +2,16 @@ import os
 import fitz  # PyMuPDF
 import subprocess
 import logging
+import re
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # Setup logging
+log_file_path = os.path.abspath("pdf_scan.log")
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler("pdf_scan.log"),
+        logging.FileHandler(log_file_path, mode='a'),
         logging.StreamHandler()
     ]
 )
@@ -21,19 +23,18 @@ pdf_folder = "./pdf_test"  # Change this to your actual folder path
 keywords = ["Trailer", "Boat", "12/31/2023"]
 
 # Output file for matches
-output_file_path = "matching_files.txt"
+output_file_path = os.path.abspath("matching_files.txt")
 
 # Compile keyword pattern for faster matching
-import re
 keyword_pattern = re.compile("|".join(re.escape(k) for k in keywords), re.IGNORECASE)
 
-# Function to extract text from a PDF
-def extract_text_from_pdf(file_path):
+# Function to extract text from the first N pages of a PDF
+def extract_text_from_pdf(file_path, max_pages=5):
     try:
         doc = fitz.open(file_path)
         full_text = ""
-        for page in doc:
-            full_text += page.get_text()
+        for page_num in range(min(max_pages, len(doc))):
+            full_text += doc[page_num].get_text()
         doc.close()
         return full_text
     except Exception as e:
@@ -52,21 +53,19 @@ def apply_ocr(input_path, output_path):
 # Function to process a single PDF file
 def process_pdf(filename):
     file_path = os.path.join(pdf_folder, filename)
-    text = extract_text_from_pdf(file_path)
+    text = extract_text_from_pdf(file_path, max_pages=5)
 
     # If no text, apply OCR
     if not text.strip():
         ocr_output_path = os.path.join(pdf_folder, f"ocr_{filename}")
-        if not os.path.exists(ocr_output_path):
-            if apply_ocr(file_path, ocr_output_path):
-                text = extract_text_from_pdf(ocr_output_path)
-        else:
-            text = extract_text_from_pdf(ocr_output_path)
+        if apply_ocr(file_path, ocr_output_path):
+            text = extract_text_from_pdf(ocr_output_path, max_pages=5)
 
     # Search for keywords
     if keyword_pattern.search(text):
         return filename
     return None
+
 # Safe wrapper for error handling
 def process_pdf_safe(filename):
     try:
@@ -90,7 +89,7 @@ with ThreadPoolExecutor(max_workers=8) as executor, open(output_file_path, "a") 
         result = future.result()
         if result:
             output_file.write(result + "\n")
-            output_file.flush()  # Ensure it's written immediately
+            output_file.flush()
             logging.info(f"Match found: {result}")
 
         # Log progress every 100 files
