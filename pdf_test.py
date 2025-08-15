@@ -20,7 +20,7 @@ logging.basicConfig(
 pdf_folder = "./pdf_test"  # Change this to your actual folder path
 
 # Keywords to search for
-keywords = ["HELPDESK", "ConDition", "12/31/2023"]
+keywords = ["Nicollet"]
 
 # Output file for matches
 output_file_path = os.path.abspath("matching_files.txt")
@@ -29,7 +29,7 @@ output_file_path = os.path.abspath("matching_files.txt")
 keyword_pattern = re.compile(r"\b(" + "|".join(re.escape(k) for k in keywords) + r")\b", re.IGNORECASE)
 
 # Function to extract text from the first N pages of a PDF
-def extract_text_from_pdf(file_path, max_pages=5):
+def extract_text_from_pdf(file_path, max_pages=3):
     try:
         doc = fitz.open(file_path)
         full_text = ""
@@ -40,6 +40,21 @@ def extract_text_from_pdf(file_path, max_pages=5):
     except Exception as e:
         logging.error(f"Error reading {file_path}: {e}")
         return ""
+
+# Function to extract first N pages into a temporary PDF
+def extract_first_n_pages(input_path, output_path, max_pages=3):
+    try:
+        doc = fitz.open(input_path)
+        new_doc = fitz.open()
+        for i in range(min(max_pages, len(doc))):
+            new_doc.insert_pdf(doc, from_page=i, to_page=i)
+        new_doc.save(output_path)
+        new_doc.close()
+        doc.close()
+        return True
+    except Exception as e:
+        logging.error(f"Failed to extract first {max_pages} pages from {input_path}: {e}")
+        return False
 
 # Function to apply OCR using ocrmypdf
 def apply_ocr(input_path, output_path):
@@ -53,13 +68,15 @@ def apply_ocr(input_path, output_path):
 # Function to process a single PDF file
 def process_pdf(filename):
     file_path = os.path.join(pdf_folder, filename)
-    text = extract_text_from_pdf(file_path, max_pages=5)
+    text = extract_text_from_pdf(file_path, max_pages=3)
 
-    # If no text, apply OCR
+    # If no text, apply OCR to first 3 pages only
     if not text.strip():
+        truncated_path = os.path.join(pdf_folder, f"first3_{filename}")
         ocr_output_path = os.path.join(pdf_folder, f"ocr_{filename}")
-        if apply_ocr(file_path, ocr_output_path):
-            text = extract_text_from_pdf(ocr_output_path, max_pages=5)
+        if extract_first_n_pages(file_path, truncated_path, max_pages=3):
+            if apply_ocr(truncated_path, ocr_output_path):
+                text = extract_text_from_pdf(ocr_output_path, max_pages=3)
 
     # Search for keywords
     if keyword_pattern.search(text):
