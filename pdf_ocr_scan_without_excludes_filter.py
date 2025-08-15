@@ -22,9 +22,6 @@ pdf_folder = "./pdf_test"  # Change this to your actual folder path
 # Keywords to search for
 keywords = ["Nicollet", "trailer", "Software Developer", "helpdesk"]
 
-# Exclusion keywords to filter out false positives
-exclusion_keywords = ["Trying THIS", "here", "test", "common"]
-
 # Output file for matches
 output_file_path = os.path.abspath("matching_files.txt")
 
@@ -83,11 +80,6 @@ def process_pdf(filename):
 
     # Search for keywords
     if keyword_pattern.search(text):
-        # Check for exclusion keywords
-        for exclude in exclusion_keywords:
-            if exclude.lower() in text.lower():
-                logging.info(f"Excluded match in {filename} due to keyword: {exclude}")
-                return None
         return filename
     return None
 
